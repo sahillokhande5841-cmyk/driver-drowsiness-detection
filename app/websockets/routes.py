@@ -4,6 +4,11 @@ import json
 from app.api.v1.endpoints.detector import get_detector
 
 router = APIRouter()
+_detector = None
+
+def set_detector(detector_instance):
+    global _detector
+    _detector = detector_instance
 
 @router.websocket("/ws")
 async def websocket_telemetry(websocket: WebSocket):
@@ -12,7 +17,7 @@ async def websocket_telemetry(websocket: WebSocket):
     Carries EAR, MAR, Pitch, Yaw, Roll, status, fatigue score, blinks, yawns, and active alerts.
     """
     await websocket.accept()
-    detector = get_detector()
+    detector = _detector or get_detector()
 
     try:
         while True:
