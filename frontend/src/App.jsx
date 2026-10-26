@@ -1,13 +1,12 @@
-import { useState } from 'react'
-import Dashboard from './pages/Dashboard'
+import Dashboard from "./pages/Dashboard";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 function App() {
-
   return (
-    <>
-    <Dashboard />
-    </>
-  )
+    <ErrorBoundary>
+      <Dashboard />
+    </ErrorBoundary>
+  );
 }
 
-export default App
+export default App;
