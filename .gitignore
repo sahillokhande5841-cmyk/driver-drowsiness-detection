@@ -75,3 +75,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Local backups
+_backup/
