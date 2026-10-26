@@ -1,43 +1,108 @@
-MAX_SCORE = 10
-RECOVERY_RATE = 0.10
+from app.config import (
+    MAX_FATIGUE_SCORE,
+    NORMAL_DECAY_RATE,
+    ACTIVE_RECOVERY_RATE,
+    EYE_CLOSED_WEIGHT,
+    HEAD_DOWN_WEIGHT,
+    YAWN_WEIGHT,
+    PHONE_WEIGHT,
+    FATIGUE_WARNING_SCORE,
+    DROWSINESS_WARNING_SCORE,
+    CRITICAL_DROWSINESS_SCORE,
+)
 
-EYE_WEIGHT = 0.40
-HEAD_WEIGHT = 0.30
-YAWN_WEIGHT = 2.0
+def update_fatigue_score(
+    current_score: float,
+    dt: float,
+    eye_closed_prolonged: bool,
+    head_down: bool,
+    yawn_completed: bool,
+    phone_distracted: bool = False,
+    is_recovering: bool = False
+) -> float:
+    """
+    Updates the fatigue score using time-based delta (dt seconds).
+    - Increases during prolonged eye closure, head down, yawn completion, or phone distraction.
+    - Decays at NORMAL_DECAY_RATE during normal attentiveness.
+    - Decays at ACTIVE_RECOVERY_RATE (accelerated) when driver actively opens eyes to recover.
+    - Strictly clamped to [0.0, MAX_FATIGUE_SCORE].
+    """
+    new_score = float(current_score)
 
-
-def calculate_fatigue_score(
-    fatigue_score,
-    eye_closed,
-    head_down,
-    new_yawn
-):
-
-    if eye_closed:
-        fatigue_score += EYE_WEIGHT
+    # Accumulate score for fatigue & distraction events
+    if eye_closed_prolonged:
+        new_score += EYE_CLOSED_WEIGHT * dt * 2.5
 
     if head_down:
-        fatigue_score += HEAD_WEIGHT
+        new_score += HEAD_DOWN_WEIGHT * dt
 
-    if new_yawn:
-        fatigue_score += YAWN_WEIGHT
+    if yawn_completed:
+        new_score += YAWN_WEIGHT
 
-    if not eye_closed and not head_down:
-        fatigue_score -= RECOVERY_RATE
+    if phone_distracted:
+        new_score += PHONE_WEIGHT * dt
 
-    fatigue_score = max(0, fatigue_score)
-    fatigue_score = min(MAX_SCORE, fatigue_score)
+    # Recovery / decay when driver is attentive and no fatigue event occurred
+    if not eye_closed_prolonged and not head_down and not phone_distracted and not yawn_completed:
+        if is_recovering:
+            new_score -= ACTIVE_RECOVERY_RATE * dt
+        else:
+            new_score -= NORMAL_DECAY_RATE * dt
 
-    return fatigue_score
+    return float(max(0.0, min(float(MAX_FATIGUE_SCORE), new_score)))
 
 
-def get_status(score):
+def get_driver_status(
+    fatigue_score: float,
+    eye_closed_severe: bool,
+    eye_closed_prolonged: bool,
+    phone_distracted: bool,
+    head_down_prolonged: bool,
+    is_calibrating: bool = False,
+    face_detected: bool = True,
+    camera_connected: bool = True
+) -> str:
+    """
+    Centralized 7+ state machine for driver drowsiness status:
+    1. CAMERA_ERROR: Camera feed unavailable or disconnected
+    2. INITIALIZING: Initial startup
+    3. CALIBRATING: Baseline measurement active
+    4. NO_FACE: Driver face absent (>1.2s hysteresis)
+    5. CRITICAL_DROWSINESS: Eyes closed >= 2.2s (microsleep/sleeping)
+    6. DROWSINESS_WARNING: Eyes closed >= 1.2s, or high fatigue score with closed eyes
+    7. DISTRACTED: Mobile phone or sustained head down posture
+    8. FATIGUE_WARNING: Elevated fatigue score (frequent blinks/yawns)
+    9. NORMAL: Eyes open, posture upright, attentive
+    """
+    if not camera_connected:
+        return "CAMERA_ERROR"
 
-    if score >= 8:
-        return "DROWSY"
+    if not face_detected:
+        return "NO_FACE"
 
-    elif score >= 4:
-        return "TIRED"
+    if is_calibrating:
+        return "CALIBRATING"
 
-    else:
-        return "NORMAL"
+    # Critical drowsiness: only when severe closure is actively ongoing
+    if eye_closed_severe:
+        return "CRITICAL_DROWSINESS"
+
+    # Drowsiness warning: early eye closure warning
+    if eye_closed_prolonged:
+        return "DROWSINESS_WARNING"
+
+    # Distraction states
+    if phone_distracted:
+        return "DISTRACTED_PHONE"
+
+    if head_down_prolonged:
+        return "DISTRACTED_HEAD_DOWN"
+
+    # Score-based fatigue states (only when eyes are open)
+    if fatigue_score >= DROWSINESS_WARNING_SCORE:
+        return "DROWSINESS_WARNING"
+
+    if fatigue_score >= FATIGUE_WARNING_SCORE:
+        return "FATIGUE_WARNING"
+
+    return "NORMAL"
