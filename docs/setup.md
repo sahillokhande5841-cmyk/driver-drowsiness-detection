@@ -25,17 +25,39 @@ Activate it:
 # macOS / Linux
 source venv/bin/activate
 
-# Windows
-venv\Scripts\activate
+# Windows (Command Prompt)
+venv\Scripts\activate.bat
+
+# Windows (PowerShell)
+# If script execution is disabled, first run: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+.\venv\Scripts\Activate.ps1
 ```
 
-## 3. Install backend dependencies
+## 3. Configure Environment Variables
+
+Copy the example environment configuration:
+
+```bash
+# Windows (PowerShell)
+Copy-Item .env.example .env
+
+# macOS / Linux
+cp .env.example .env
+```
+
+## 4. Install backend dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## 4. Run the FastAPI backend
+## 5. Run initial tests
+
+```bash
+pytest
+```
+
+## 6. Run the FastAPI backend
 
 From the repo root (not inside `app/`):
 
@@ -46,10 +68,11 @@ uvicorn app.main:app --reload
 Backend runs at `http://127.0.0.1:8000`. Confirm it's up:
 
 ```bash
-curl http://127.0.0.1:8000/health
+# Health check endpoint
+curl http://127.0.0.1:8000/api/health
 ```
 
-## 5. Install frontend dependencies
+## 7. Install frontend dependencies
 
 In a new terminal:
 
@@ -58,7 +81,7 @@ cd frontend
 npm install
 ```
 
-## 6. Run the React frontend
+## 8. Run the React frontend
 
 ```bash
 npm run dev
@@ -66,7 +89,7 @@ npm run dev
 
 Frontend runs at `http://localhost:5173`.
 
-## 7. Open the dashboard
+## 9. Open the dashboard
 
 Visit `http://localhost:5173` in your browser and click **Start**. Grant webcam access if prompted.
 
